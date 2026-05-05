@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Heart Disease Risk · Clinical Insight</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    /* ── Reset & tokens ─────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d1117;
+      --bg2:       #131920;
+      --card:      #161d26;
+      --border:    rgba(255,255,255,.07);
+      --accent:    #e05a5a;
+      --accent2:   #f4a261;
+      --teal:      #2ec4b6;
+      --text:      #e6edf3;
+      --muted:     #7d8fa0;
+      --safe:      #3fb950;
+      --warn:      #f4a261;
+      --danger:    #e05a5a;
+      --radius:    14px;
+      --shadow:    0 8px 32px rgba(0,0,0,.45);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    /* ── Background grid ────────────────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .page { position: relative; z-index: 1; max-width: 960px; margin: 0 auto; padding: 0 20px 80px; }
+
+    /* ── Hero ───────────────────────────────────────────────── */
+    .hero {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 32px;
+      padding: 56px 0 40px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 40px;
+    }
+
+    .eyebrow {
+      font-size: .75rem;
+      font-weight: 600;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 10px;
+    }
+
+    .hero h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(2rem, 5vw, 3rem);
+      line-height: 1.15;
+      color: var(--text);
+    }
+
+    .hero-panel {
+      flex-shrink: 0;
+      background: linear-gradient(135deg, rgba(224,90,90,.15), rgba(244,162,97,.08));
+      border: 1px solid rgba(224,90,90,.3);
+      border-radius: var(--radius);
+      padding: 18px 24px;
+      text-align: center;
+      min-width: 160px;
+    }
+    .hero-panel-title { font-size: .7rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+    .hero-panel-value { font-family: 'DM Serif Display', serif; font-size: 1.1rem; color: var(--accent2); }
+
+    /* ── Cards ──────────────────────────────────────────────── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .card h2 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.35rem;
+      margin-bottom: 4px;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 28px;
+      gap: 16px;
+    }
+
+    .hint { font-size: .82rem; color: var(--muted); margin-top: 4px; }
+
+    .hidden { display: none !important; }
+
+    /* ── Form grid ──────────────────────────────────────────── */
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 16px;
+    }
+
+    .field { display: flex; flex-direction: column; gap: 6px; }
+
+    .field-label {
+      font-size: .78rem;
+      font-weight: 600;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .field input,
+    .field select {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: .93rem;
+      padding: 10px 14px;
+      outline: none;
+      transition: border-color .2s;
+      appearance: none;
+    }
+    .field input:focus,
+    .field select:focus { border-color: var(--teal); }
+
+    .field select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237d8fa0' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      padding-right: 36px;
+    }
+
+    /* ── Buttons ────────────────────────────────────────────── */
+    .btn {
+      grid-column: 1 / -1;
+      background: linear-gradient(135deg, var(--accent), #c0392b);
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      font-family: 'DM Sans', sans-serif;
+      font-size: .95rem;
+      font-weight: 600;
+      letter-spacing: .04em;
+      padding: 14px 28px;
+      cursor: pointer;
+      transition: opacity .2s, transform .15s;
+    }
+    .btn:hover { opacity: .88; transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+
+    .help-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--muted);
+      font-family: 'DM Sans', sans-serif;
+      font-size: .8rem;
+      font-weight: 600;
+      padding: 6px 16px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: border-color .2s, color .2s;
+    }
+    .help-btn:hover { border-color: var(--teal); color: var(--teal); }
+
+    /* ── Error card ─────────────────────────────────────────── */
+    .error-card {
+      border-color: rgba(224,90,90,.4);
+      background: rgba(224,90,90,.08);
+      color: var(--accent);
+      font-weight: 500;
+      font-size: .9rem;
+    }
+
+    /* ── Results ────────────────────────────────────────────── */
+    .result-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: 20px;
+    }
+
+    .result-item {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px 20px;
+      text-align: center;
+    }
+
+    .result-label {
+      font-size: .7rem;
+      font-weight: 600;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .result-value {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.25rem;
+      color: var(--text);
+      line-height: 1.3;
+    }
+
+    .result-sub { font-size: .82rem; color: var(--muted); margin-top: 6px; }
+
+    .risk-Low    { color: var(--safe); }
+    .risk-Medium { color: var(--warn); }
+    .risk-High   { color: var(--danger); }
+
+    /* ── Charts ─────────────────────────────────────────────── */
+    .charts-row {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      gap: 28px;
+      align-items: center;
+      margin-bottom: 28px;
+    }
+
+    .donut-wrap {
+      position: relative;
+      width: 180px;
+      height: 180px;
+      margin: 0 auto;
+    }
+
+    .donut-center {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    .donut-score {
+      font-family: 'DM Serif Display', serif;
+      font-size: 2rem;
+      line-height: 1;
+      color: var(--text);
+    }
+
+    .donut-label { font-size: .7rem; color: var(--muted); margin-top: 2px; }
+
+    .chart-wrap { position: relative; height: 260px; }
+
+    /* ── Risk reasons ───────────────────────────────────────── */
+    .risk-reasons {
+      background: rgba(224,90,90,.07);
+      border: 1px solid rgba(224,90,90,.2);
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-top: 16px;
+    }
+
+    .risk-reasons h3 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1rem;
+      color: var(--accent);
+      margin-bottom: 12px;
+    }
+
+    .risk-reasons ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+
+    .risk-reasons li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: .88rem;
+      color: #d9a0a0;
+    }
+
+    .risk-reasons li::before {
+      content: '⚠';
+      color: var(--accent2);
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    /* ── Safe reasons ───────────────────────────────────────── */
+    .safe-note {
+      font-size: .88rem;
+      color: var(--safe);
+      margin-top: 12px;
+    }
+
+    /* ── Feature importance bar ─────────────────────────────── */
+    .importance-wrap { margin-top: 24px; }
+    .importance-wrap h3 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1rem;
+      margin-bottom: 14px;
+      color: var(--text);
+    }
+
+    /* ── Modal ──────────────────────────────────────────────── */
+    .modal {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.65);
+      z-index: 999;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal.is-open { display: flex; }
+
+    .modal-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      max-width: 680px;
+      width: 100%;
+      max-height: 88vh;
+      overflow-y: auto;
+      box-shadow: var(--shadow);
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 24px 28px;
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0;
+      background: var(--card);
+    }
+
+    .modal-header h3 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.2rem;
+    }
+
+    .modal-close {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-size: 1.4rem;
+      cursor: pointer;
+      line-height: 1;
+      padding: 4px 8px;
+      border-radius: 6px;
+      transition: color .2s;
+    }
+    .modal-close:hover { color: var(--text); }
+
+    .modal-body { padding: 24px 28px; }
+
+    .help-table { width: 100%; border-collapse: collapse; font-size: .85rem; margin-bottom: 24px; }
+    .help-table th { text-align: left; font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); padding: 8px 0; }
+    .help-table td { padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,.04); vertical-align: top; }
+    .help-table td:first-child { color: var(--teal); padding-right: 20px; width: 50%; }
+
+    .help-section { margin-top: 20px; }
+    .help-section h4 { font-size: .8rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+    .help-section pre { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 16px; font-size: .8rem; color: var(--muted); white-space: pre-wrap; font-family: monospace; }
+
+    .legend { display: flex; align-items: center; gap: 10px; font-size: .85rem; margin-top: 8px; }
+    .legend-box { width: 14px; height: 14px; border-radius: 4px; flex-shrink: 0; }
+    .legend-low  { background: var(--safe); }
+    .legend-high { background: var(--danger); }
+
+    /* ── Responsive ─────────────────────────────────────────── */
+    @media (max-width: 680px) {
+      .hero { flex-direction: column; }
+      .result-grid { grid-template-columns: 1fr; }
+      .charts-row { grid-template-columns: 1fr; }
+      .donut-wrap { width: 160px; height: 160px; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ── Hero ─────────────────────────────────────────────── -->
+  <header class="hero">
+    <div>
+      <p class="eyebrow">Clinical Insight</p>
+      <h1>Heart Disease<br>Risk Prediction</h1>
+    </div>
+    <div class="hero-panel">
+      <div class="hero-panel-title">Model in use</div>
+      <div class="hero-panel-value">{{ model_name }}</div>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- ── Patient Input Form ────────────────────────────── -->
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h2>Patient Inputs</h2>
+          <p class="hint">Enter clinical values below. All fields are required.</p>
+        </div>
+        <button class="help-btn" type="button" id="helpBtn">? Help</button>
+      </div>
+
+      <form class="form-grid" id="predictForm">
+        {% for name in feature_names %}
+        <label class="field">
+          <span class="field-label">{{ feature_labels.get(name, name) }}</span>
+          {% if name in select_options %}
+          <select name="{{ name }}" required>
+            <option value="" selected disabled>Select…</option>
+            {% for v, label in select_options[name] %}
+            <option value="{{ v }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+          {% else %}
+          <input type="number" step="any" name="{{ name }}" placeholder="Enter value" required />
+          {% endif %}
+        </label>
+        {% endfor %}
+        <button class="btn" type="submit">Run Prediction</button>
+      </form>
+    </section>
+
+    <!-- ── Error ─────────────────────────────────────────── -->
+    <section class="card error-card hidden" id="errorCard">
+      <p id="errorMessage"></p>
+    </section>
+
+    <!-- ── Results ───────────────────────────────────────── -->
+    <section class="card hidden" id="resultsSection">
+      <h2>Diagnosis Overview</h2>
+      <div class="result-grid">
+        <div class="result-item">
+          <div class="result-label">Prediction</div>
+          <div class="result-value" id="predictionValue">--</div>
+        </div>
+        <div class="result-item">
+          <div class="result-label">Risk Level</div>
+          <div class="result-value" id="riskValue">--</div>
+          <div class="result-sub" id="probabilityValue">Probability: --</div>
+        </div>
+        <div class="result-item">
+          <div class="result-label">Model</div>
+          <div class="result-value" style="font-size:1rem">{{ model_name }}</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Charts + Insights ─────────────────────────────── -->
+    <section class="card hidden" id="chartSection">
+      <h2>Graphical Analysis</h2>
+      <p class="hint" style="margin-bottom:24px">Patient values vs. population averages across key clinical markers.</p>
+
+      <div class="charts-row">
+        <div class="donut-wrap">
+          <canvas id="riskDonut"></canvas>
+          <div class="donut-center">
+            <div class="donut-score" id="donutScore">0</div>
+            <div class="donut-label">risk score</div>
+          </div>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="symptomChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Risk reasons -->
+      <div class="risk-reasons hidden" id="riskReasonsWrap">
+        <h3>Risk Factors Identified</h3>
+        <ul id="riskReasonsList"></ul>
+      </div>
+
+      <!-- Safe message -->
+      <p class="safe-note hidden" id="safeNote">
+        ✓ No individual high-risk clinical markers detected. Maintain a healthy lifestyle and schedule regular check-ups.
+      </p>
+    </section>
+
+  </main>
+</div>
+
+<!-- ── Help Modal ─────────────────────────────────────────── -->
+<div class="modal" id="helpModal" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-modal="true">
+    <div class="modal-header">
+      <h3>Feature Reference Guide</h3>
+      <button class="modal-close" type="button" id="closeHelp" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <table class="help-table">
+        <thead><tr><th>Feature</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>Age (age)</td><td>Patient age in years</td></tr>
+          <tr><td>Sex (sex)</td><td>1 = Male, 0 = Female</td></tr>
+          <tr><td>Chest Pain (cp)</td><td>Type of chest pain experienced</td></tr>
+          <tr><td>Resting BP (trestbps)</td><td>Blood pressure at rest, in mm Hg</td></tr>
+          <tr><td>Cholesterol (chol)</td><td>Serum cholesterol in mg/dl</td></tr>
+          <tr><td>Fasting Sugar (fbs)</td><td>Blood sugar &gt; 120 mg/dl: 1 = Yes</td></tr>
+          <tr><td>Resting ECG (restecg)</td><td>Electrocardiographic result at rest</td></tr>
+          <tr><td>Max Heart Rate (thalach)</td><td>Peak heart rate achieved during exercise</td></tr>
+          <tr><td>Exercise Angina (exang)</td><td>Chest pain triggered by exercise</td></tr>
+          <tr><td>ST Depression (oldpeak)</td><td>Exercise-induced ST depression vs rest</td></tr>
+          <tr><td>ST Slope (slope)</td><td>Shape of peak ST segment</td></tr>
+          <tr><td>Vessels (ca)</td><td>Major vessels colored by fluoroscopy (0–3)</td></tr>
+          <tr><td>Thalassemia (thal)</td><td>Blood disorder test result</td></tr>
+        </tbody>
+      </table>
+
+      <div class="help-section">
+        <h4>Category values</h4>
+        <pre>Chest Pain (cp):  0=Typical Angina  1=Atypical  2=Non-Anginal  3=Asymptomatic
+ECG (restecg):    0=Normal  1=ST-T Abnormality  2=LV Hypertrophy
+ST Slope (slope): 0=Upsloping  1=Flat  2=Downsloping
+Thalassemia:      1=Normal  2=Fixed Defect  3=Reversible Defect</pre>
+      </div>
+
+      <div class="help-section">
+        <h4>Target label</h4>
+        <p class="legend"><span class="legend-box legend-low"></span>0 — No heart disease</p>
+        <p class="legend"><span class="legend-box legend-high"></span>1 — Heart disease present</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ── Modal ──────────────────────────────────────────────── */
+  const helpBtn   = document.getElementById("helpBtn");
+  const helpModal = document.getElementById("helpModal");
+  const closeHelp = document.getElementById("closeHelp");
+
+  helpBtn.addEventListener("click", () => { helpModal.classList.add("is-open"); helpModal.setAttribute("aria-hidden","false"); });
+  closeHelp.addEventListener("click", () => { helpModal.classList.remove("is-open"); helpModal.setAttribute("aria-hidden","true"); });
+  helpModal.addEventListener("click", e => { if (e.target === helpModal) closeHelp.click(); });
+
+  /* ── Form submit ────────────────────────────────────────── */
+  const form            = document.getElementById("predictForm");
+  const errorCard       = document.getElementById("errorCard");
+  const errorMessage    = document.getElementById("errorMessage");
+  const resultsSection  = document.getElementById("resultsSection");
+  const chartSection    = document.getElementById("chartSection");
+  const predictionValue = document.getElementById("predictionValue");
+  const riskValue       = document.getElementById("riskValue");
+  const probabilityValue= document.getElementById("probabilityValue");
+  const donutScore      = document.getElementById("donutScore");
+  const riskReasonsWrap = document.getElementById("riskReasonsWrap");
+  const riskReasonsList = document.getElementById("riskReasonsList");
+  const safeNote        = document.getElementById("safeNote");
+
+  let symptomChart = null;
+  let donutChart   = null;
+
+  form.addEventListener("submit", async e => {
+    e.preventDefault();
+    errorCard.classList.add("hidden");
+
+    const btn = form.querySelector(".btn");
+    btn.textContent = "Analysing…";
+    btn.disabled = true;
+
+    try {
+      const res  = await fetch("/predict", { method: "POST", body: new FormData(form) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Prediction failed");
+
+      /* Results */
+      resultsSection.classList.remove("hidden");
+      chartSection.classList.remove("hidden");
+
+      predictionValue.textContent = data.prediction;
+      riskValue.textContent       = data.risk_level;
+      riskValue.className         = `result-value risk-${data.risk_level}`;
+      probabilityValue.textContent= `Probability: ${data.probability_percent.toFixed(1)}%`;
+      donutScore.textContent      = Math.round(data.probability_percent);
+
+      /* Donut color */
+      const riskColor = data.risk_level === "High"   ? "rgba(224,90,90,"
+                      : data.risk_level === "Medium"  ? "rgba(244,162,97,"
+                      :                                 "rgba(63,185,80,";
+      const donutColors = [`${riskColor}0.85)`, `${riskColor}0.12)`];
+
+      const donutCtx = document.getElementById("riskDonut").getContext("2d");
+      const donutData = [data.probability_percent, 100 - data.probability_percent];
+      if (donutChart) {
+        donutChart.data.datasets[0].data = donutData;
+        donutChart.data.datasets[0].backgroundColor = donutColors;
+        donutChart.update();
+      } else {
+        donutChart = new Chart(donutCtx, {
+          type: "doughnut",
+          data: {
+            labels: ["Risk Score", "Remaining"],
+            datasets: [{ data: donutData, backgroundColor: donutColors, borderWidth: 0 }]
+          },
+          options: {
+            cutout: "72%", responsive: true,
+            plugins: { legend: { display: false }, tooltip: { callbacks: {
+              label: ctx => ` ${ctx.parsed.toFixed(1)}%`
+            }}}
+          }
+        });
+      }
+
+      /* Bar chart */
+      const cd = data.chart_data;
+      const barCtx = document.getElementById("symptomChart").getContext("2d");
+      if (symptomChart) {
+        symptomChart.data.labels = cd.labels;
+        symptomChart.data.datasets[0].data = cd.user_values;
+        symptomChart.data.datasets[1].data = cd.mean_values;
+        symptomChart.update();
+      } else {
+        symptomChart = new Chart(barCtx, {
+          type: "bar",
+          data: {
+            labels: cd.labels,
+            datasets: [
+              { label: "Patient", data: cd.user_values,
+                backgroundColor: "rgba(46,196,182,.75)", borderColor: "#2ec4b6", borderWidth: 1, borderRadius: 5 },
+              { label: "Population Mean", data: cd.mean_values,
+                backgroundColor: "rgba(244,162,97,.55)", borderColor: "#f4a261", borderWidth: 1, borderRadius: 5 }
+            ]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { labels: { color: "#7d8fa0", font: { size: 11 } } } },
+            scales: {
+              x: { ticks: { color: "#7d8fa0", font: { size: 10 } }, grid: { color: "rgba(255,255,255,.04)" } },
+              y: { beginAtZero: true, ticks: { color: "#7d8fa0" }, grid: { color: "rgba(255,255,255,.06)" } }
+            }
+          }
+        });
+      }
+
+      /* Risk reasons */
+      riskReasonsList.innerHTML = "";
+      if (data.risk_reasons && data.risk_reasons.length) {
+        data.risk_reasons.forEach(r => {
+          const li = document.createElement("li");
+          li.textContent = r;
+          riskReasonsList.appendChild(li);
+        });
+        riskReasonsWrap.classList.remove("hidden");
+        safeNote.classList.add("hidden");
+      } else {
+        riskReasonsWrap.classList.add("hidden");
+        safeNote.classList.remove("hidden");
+      }
+
+      resultsSection.scrollIntoView({ behavior: "smooth", block: "start" });
+
+    } catch (err) {
+      errorMessage.textContent = err.message;
+      errorCard.classList.remove("hidden");
+      resultsSection.classList.add("hidden");
+      chartSection.classList.add("hidden");
+    } finally {
+      btn.textContent = "Run Prediction";
+      btn.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>
