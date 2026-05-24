@@ -3,21 +3,47 @@ import pickle
 import numpy as np
 import json
 import os
+import logging
 from pathlib import Path
+from datetime import datetime
 
 app = Flask(__name__)
+
+# ─── Configuration ─────────────────────────────────────────────────────────────
+DEBUG_MODE = os.environ.get("FLASK_ENV", "production") == "development"
+app.config['JSON_SORT_KEYS'] = False
+
+# ─── Logging setup ─────────────────────────────────────────────────────────────
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 # ─── Load model artifact ───────────────────────────────────────────────────────
 BASE_DIR = Path(__file__).resolve().parent
 MODEL_PATH = BASE_DIR / "artifacts" / "heart_disease_model.pkl"
 
-with open(MODEL_PATH, "rb") as f:
-    artifact = pickle.load(f)
-
-model        = artifact["model"]
-scaler       = artifact["scaler"]
-feature_names = artifact["feature_names"]
-model_name   = artifact.get("model_name", "Gradient Boosting")
+try:
+    if not MODEL_PATH.exists():
+        logger.error(f"Model file not found at {MODEL_PATH}")
+        raise FileNotFoundError(f"Model artifact missing: {MODEL_PATH}")
+    
+    with open(MODEL_PATH, "rb") as f:
+        artifact = pickle.load(f)
+    
+    model        = artifact["model"]
+    scaler       = artifact["scaler"]
+    feature_names = artifact["feature_names"]
+    model_name   = artifact.get("model_name", "Gradient Boosting")
+    logger.info(f"✓ Model loaded successfully: {model_name}")
+    
+except Exception as e:
+    logger.critical(f"Failed to load model: {str(e)}")
+    model = None
+    scaler = None
+    feature_names = []
+    model_name = "Error"
 
 # ─── Feature metadata ──────────────────────────────────────────────────────────
 FEATURE_LABELS = {
@@ -128,9 +154,22 @@ def index():
     )
 
 
+@app.route("/health", methods=["GET"])
+def health():
+    """Health check endpoint for deployment monitoring."""
+    if model is None:
+        logger.warning("Health check: model not loaded")
+        return jsonify({"status": "unhealthy", "reason": "model_unavailable"}), 503
+    return jsonify({"status": "healthy", "timestamp": datetime.utcnow().isoformat()}), 200
+
+
 @app.route("/predict", methods=["POST"])
 def predict():
     try:
+        if model is None:
+            logger.error("Prediction attempted but model not loaded")
+            return jsonify({"error": "Model not available. Please try again later."}), 503
+        
         scaled, raw = prepare_input(request.form)
 
         pred = int(model.predict(scaled)[0])
@@ -140,6 +179,8 @@ def predict():
         risk_reasons  = get_risk_reasons(raw)
         chart_data    = build_chart_data(raw)
 
+        logger.info(f"Prediction completed: risk_level={risk_level}, probability={prob:.2f}")
+
         return jsonify({
             "prediction":       "Heart Disease Detected" if pred == 1 else "No Heart Disease",
             "probability_percent": round(prob * 100, 2),
@@ -147,14 +188,34 @@ def predict():
             "risk_reasons":     risk_reasons,
             "chart_data":       chart_data,
             "model_name":       model_name,
-        })
+        }), 200
 
+    except ValueError as e:
+        logger.warning(f"Validation error: {str(e)}")
+        return jsonify({"error": f"Input validation failed: {str(e)}"}), 400
     except Exception as e:
-        return jsonify({"error": str(e)}), 400
+        logger.error(f"Prediction error: {str(e)}", exc_info=True)
+        return jsonify({"error": "An unexpected error occurred. Please try again."}), 500
+
+
+# ─── Error handlers ────────────────────────────────────────────────────────────
+@app.errorhandler(404)
+def not_found(e):
+    return jsonify({"error": "Not found"}), 404
+
+@app.errorhandler(500)
+def internal_error(e):
+    logger.error(f"Internal server error: {str(e)}")
+    return jsonify({"error": "Internal server error"}), 500
 
 
 # ─── Run ──────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(
+        host="0.0.0.0",
+        port=port,
+        debug=DEBUG_MODE,
+        use_reloader=DEBUG_MODE
+    )
